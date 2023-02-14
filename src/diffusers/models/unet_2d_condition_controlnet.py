@@ -32,6 +32,8 @@ from .unet_2d_blocks_controlnet import (
     get_down_block_with_zero_conv,
     set_zero_parameters,
     zero_conv,
+    DownBlock2DWithZeroConv,
+    CrossAttnDownBlock2DWithZeroConv,
 )
 from .unet_2d_condition import UNet2DConditionOutput
 
@@ -232,10 +234,10 @@ class ControlNetModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         flip_sin_to_cos: bool = True,
         freq_shift: int = 0,
         down_block_types: Tuple[str] = (
-            "CrossAttnDownBlock2D",
-            "CrossAttnDownBlock2D",
-            "CrossAttnDownBlock2D",
-            "DownBlock2D",
+            "CrossAttnDownBlock2DWithZeroConv",
+            "CrossAttnDownBlock2DWithZeroConv",
+            "CrossAttnDownBlock2DWithZeroConv",
+            "DownBlock2DWithZeroConv",
         ),
         mid_block_type: Optional[str] = "UNetMidBlock2DCrossAttn",
         only_cross_attention: Union[bool, Tuple[bool]] = False,
@@ -403,6 +405,10 @@ class ControlNetModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         # ControlNet specific block
         self.conv_in_zero_conv = zero_conv(block_out_channels[0])
         self.middle_block_zero_conv = zero_conv(block_out_channels[-1])
+
+    def _set_gradient_checkpointing(self, module, value=False):
+        if isinstance(module, (CrossAttnDownBlock2DWithZeroConv, DownBlock2DWithZeroConv)):
+            module.gradient_checkpointing = value
 
     def forward(
         self,
