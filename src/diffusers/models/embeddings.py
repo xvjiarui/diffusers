@@ -377,3 +377,28 @@ class CombinedTimestepLabelEmbeddings(nn.Module):
         conditioning = timesteps_emb + class_labels  # (N, D)
 
         return conditioning
+
+
+class CombinedTimestepCondEmbeddings(nn.Module):
+    def __init__(self, cond_dim, embedding_dim):
+        super().__init__()
+
+        self.time_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=1)
+        self.timestep_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
+        if cond_dim is not None:
+            self.cond_embedder = nn.Linear(cond_dim, embedding_dim)
+        else:
+            self.cond_embedder = None
+
+    def forward(self, timestep, cond_input, hidden_dtype=None):
+        timesteps_proj = self.time_proj(timestep)
+        timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=hidden_dtype))  # (N, D)
+
+        if self.cond_embedder is not None:
+            cond_embed = self.cond_embedder(cond_input)  # (N, D)
+
+            conditioning = timesteps_emb + cond_embed  # (N, D)
+        else:
+            conditioning = timesteps_emb
+
+        return conditioning
